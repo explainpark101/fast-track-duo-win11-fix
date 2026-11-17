@@ -6,6 +6,24 @@
 
 Avid **Fast Track Duo** 공식 드라이버 **1.0.4** (`AvidFastTrackDuo.sys` 5.10.0.3505, 2013) 를 Windows 10/11 에서 쓸 때 나타나는 **간헐적 무음** / **오디오 관련 BSoD** 완화 패치입니다.
 
+## 다운로드 (GitHub Releases)
+
+버전 태그(`v1.0.0` …)를 푸시하거나 **Release packages** 워크플로를 실행하면 다음이 올라갑니다.
+
+| 파일 | 사용 시점 |
+|------|-----------|
+| **`1.0.4-patch.exe`** | 공식 **1.0.4** 가 이미 설치됨 — INF/APO 하드닝만 적용 (삭제 없음) |
+| **`Fast-Track-Duo-Driver_fix.1.0.0.exe`** | 커뮤니티 **드라이버 1.0.5** 클린 설치 — 기존 Duo 패키지 제거 후 고정 INF + 원본 Avid `.sys` 설치 |
+
+Release 본문에 넣는 상황별 안내 전문: [`RELEASE_NOTES.md`](RELEASE_NOTES.md) (영문 + 한국어).
+
+로컬 빌드:
+
+```powershell
+pwsh -File packaging/build.ps1
+# 결과는 dist\ 아래
+```
+
 ## 증상 → 원인 (요약)
 
 | 증상 | 원인 |
@@ -80,79 +98,56 @@ SysFx 비활성 DWORD 만 `1` 로 두는 것으로는 부족한 경우가 많습
 
 ### 4. 왜 “.sys 만 고치면 되지”가 원클릭으로 안 되는가
 
-`+0x1849d` 를 제대로 고치려면 버퍼 수명 검증(취소 동기화, free 전 DPC 정지, NonPaged 상주 등)과 **WHCP 인증된** 드라이버 배포가 필요합니다. 2013년 크로스 서명 바이너리를 임의 수정한 결과물은 현재 Windows 코드 무결성이 기대하는 커널 이미지 규칙 밖입니다. 그래서 이 저장소는:
+`+0x1849d` 를 제대로 고치려면 버퍼 수명 검증과 **WHCP 인증된** 드라이버 배포가 필요합니다. 이 저장소는:
 
-- INF/레지스트리 APO 경로는 **자름** (무음 완화, 나쁜 teardown 경로에 걸리는 스트레스 감소)
-- 해킹된 미서명 `AvidFastTrackDuo.sys` 는 **배포하지 않음**
+- Avid 원본 서명 `.sys` + **드라이버 1.0.5** INF 하드닝(Home Theater FX 제거)을 배포
+- 기존 1.0.4 위에는 **`1.0.4-patch`** 로 INF/APO 정리
+- 해킹된 미서명 `.sys` 바이너리 패치는 **배포하지 않음**
+
+제품 이름 **Fast-Track-Duo-Driver_fix.1.0.0** = **드라이버 INF 1.0.5.0** 을 감싼 패키지입니다.
 
 ---
 
-## 원클릭 패치 설치
+## 설치
 
-### 사전 조건
+### A) 이미 공식 1.0.4 → 패치만
 
-- Windows 10/11 x64
-- Fast Track Duo 드라이버 1.0.4 가 이미 설치되어 장치가 인식되는 상태
-- 관리자 권한 (UAC)
+1. **`1.0.4-patch.exe`** 실행 (UAC).
+2. Duo **공간 음향 = 끄기**, **향상 효과 사용 안 함**.
+3. 가능하면 USB 2.0.
 
-### 설치
+소스 동등물: [`patch/Install-Patch.cmd`](patch/Install-Patch.cmd).
 
-1. Duo 를 USB 에 연결합니다 (가능하면 USB 2.0 포트).
-2. [`patch/Install-Patch.cmd`](patch/Install-Patch.cmd) 를 **더블클릭** 합니다.
-3. UAC 에서 예를 누릅니다.
-4. 로그에 `WORKER_DONE` 이 보이면 완료입니다. 로그는 `patch/logs/` 아래입니다 (git 제외).
+### B) 클린 설치 → Driver Fix 1.0.0 (드라이버 1.0.5)
 
-또는 관리자 PowerShell:
+1. 오디오 앱을 종료하고 Duo 를 연결 (USB 2.0 권장).
+2. **`Fast-Track-Duo-Driver_fix.1.0.0.exe`** 실행 (UAC).
+3. 기존 Duo 패키지를 지운 뒤 [`driver/1.0.5`](driver/1.0.5) 를 `pnputil /add-driver` 로 설치합니다.
+4. 공간 음향 Off + 향상 효과 Off.
 
-```powershell
-cd <repo>\patch
-.\Install-Patch.ps1
-```
+패키지가 거부되면 (INF 변경으로 CAT 불일치): **메모리 무결성** 끄기 또는 testsigning 후 재실행 — 또는 공식 1.0.4 설치 후 **`1.0.4-patch.exe`** 를 쓰세요.
 
-설치 스크립트는 런타임에 머신 고유 이름을 찾습니다 (호스트 개인 정보는 하드코딩하지 않음):
-
-- `DriverStore\FileRepository\avidfasttrackduo.inf_*`
-- `VID_0B0F&PID_2036` / Fast Track Duo 가 들어 있는 `C:\Windows\INF\oem*.inf`
-- 해당 USB ID 의 DeviceClasses `FX\0` · `MSFX`
-- 속성에 Fast Track Duo 가 포함된 렌더 엔드포인트
-
-### 설치 후 한 번만
+### 어느 쪽이든 설치 후 한 번
 
 1. **설정 → 시스템 → 소리 → Avid Fast Track Duo → 공간 음향 = 끄기**
 2. 제어판 **소리** → Duo → 속성 → **향상 효과 → 모두 사용 안 함**
-3. 큰 Windows 업데이트 후 증상이 다시 나오면 `Install-Patch.cmd` 를 다시 실행
-
-### 패치가 바꾸는 것
-
-| 계층 | 동작 |
-|------|------|
-| DriverStore + 게시된 `oem*.inf` | [`AvidFastTrackDuo.nofx.inf`](patch/AvidFastTrackDuo.nofx.inf) 로 교체 (`mssysfx` / `FX\0` 없음) |
-| DeviceClasses | Duo `FX\0` / `MSFX` 제거 |
-| MMDevices | Duo 렌더 엔드포인트 SysFx 비활성 |
-| `AvidFastTrackDuo.sys` | 변경 없음 |
+3. 큰 Windows 업데이트 후 증상이 다시 나오면 해당 exe 재실행
 
 ---
 
 ## 저장소 구성
 
 ```
-patch/
-  Install-Patch.cmd          # 원클릭 (UAC)
-  Install-Patch.ps1          # 설치 로직
-  AvidFastTrackDuo.nofx.inf  # Home Theater FX 제거 INF
-  AvidFastTrackDuo.stock.inf # 원본 INF 백업
-analysis/
-  FINDINGS.md                # 근거 (개인정보 제외)
-assets/
-  icon.svg
-README.md                    # English
-README.ko.md                 # 한국어 (이 파일)
+patch/                 # 1.0.4 인플레이스 패치 소스
+driver/1.0.5/          # 커뮤니티 드라이버 1.0.5 (INF + 공식 .sys/.cat)
+packaging/             # ExeHost + build.ps1 → dist/*.exe
+.github/workflows/     # 태그/수동 → GitHub Release 업로드
+analysis/FINDINGS.md
+README.md / README.ko.md
 ```
-
-공식 설치 zip·추출물·미니덤프·호스트 경로 스크래치는 [`.gitignore`](.gitignore) 로 제외합니다.
 
 ## 한계
 
-- `+0x1849d` 커널 UAF 자체는 고치지 않습니다.
-- 수정한 미서명 `.sys` 는 최신 WHCP / 코드 무결성에서 로드되지 않습니다.
+- `.sys` 내부 `+0x1849d` UAF 자체는 고치지 않습니다.
+- 풀 드라이버 exe 는 INF 가 수정되어 드라이버 서명 정책을 완화해야 할 수 있습니다.
 - 스트리밍 중 탭을 매우 빠르게 닫거나 주소를 바꾸는 동작은 가능하면 줄이는 것이 안전합니다.

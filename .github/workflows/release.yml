@@ -1,0 +1,73 @@
+name: Release packages
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag/name for the release (e.g. v1.0.0). Leave empty to use run id.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure driver binaries present
+        shell: pwsh
+        run: |
+          $sys = "driver/1.0.5/AvidFastTrackDuo.sys"
+          $cat = "driver/1.0.5/AvidFastTrackDuo.cat"
+          if (-not (Test-Path $sys) -or -not (Test-Path $cat)) {
+            throw "Missing $sys / $cat. Commit official 1.0.4 .sys+.cat under driver/1.0.5 before tagging a release."
+          }
+          Get-Item $sys, $cat | Format-Table Name, Length
+
+      - name: Build release executables
+        shell: pwsh
+        run: ./packaging/build.ps1
+
+      - name: Resolve release tag
+        id: meta
+        shell: pwsh
+        env:
+          DISPATCH_TAG: ${{ github.event.inputs.tag_name }}
+        run: |
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            $tag = $env:GITHUB_REF_NAME
+          } elseif ($env:DISPATCH_TAG -and $env:DISPATCH_TAG.Trim().Length -gt 0) {
+            $tag = $env:DISPATCH_TAG.Trim()
+          } else {
+            $tag = "build-$env:GITHUB_RUN_ID"
+          }
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Release tag: $tag"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: fast-track-duo-fix-packages
+          path: |
+            dist/1.0.4-patch.exe
+            dist/Fast-Track-Duo-Driver_fix.1.0.0.exe
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: "Fast Track Duo Fix ${{ steps.meta.outputs.tag }} / Fast Track Duo 픽스 ${{ steps.meta.outputs.tag }}"
+          generate_release_notes: true
+          body_path: RELEASE_NOTES.md
+          files: |
+            dist/1.0.4-patch.exe
+            dist/Fast-Track-Duo-Driver_fix.1.0.0.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,7 +1,6 @@
-# --- Keep only docs, assets, and portable patch sources ---
-# Ignore everything else by default patterns below.
+# --- Keep docs, patch sources, driver package sources, packaging tools ---
 
-# Official installer / extracted trees (large, redistributable separately)
+# Official installer / extracted trees
 Install_Avid_Fast_Track_Duo_*.zip
 extracted_installer/
 unpacked_installer/
@@ -10,23 +9,32 @@ msi64/
 driver_bin/
 driver_files/
 
-# Local analysis scratch (dumps, logs, machine-specific paths)
+# Local analysis scratch
 analysis/**/*.dmp
 analysis/**/*.log
 analysis/**/*.txt
 analysis/**/*.ps1
 analysis/**/*.py
 analysis/**/*.err.txt
-# Keep published findings doc
 !analysis/FINDINGS.md
 
-# Patch runtime outputs / local copies of proprietary binaries
+# Patch runtime / obsolete helpers
 patch/**/*.log
 patch/logs/
 patch/AvidFastTrackDuo.sys
 patch/Apply-Hardening.cmd
 patch/Apply-FastTrackDuo-Hardening.ps1
 patch/Remove-DuoHomeTheaterFx.ps1
+
+# Build outputs
+dist/
+packaging/staging/
+packaging/ExeHost/bin/
+packaging/ExeHost/obj/
+tools/OneClickFix/
+
+# Driver package logs
+driver/**/logs/
 
 # OS / editor / secrets
 Thumbs.db

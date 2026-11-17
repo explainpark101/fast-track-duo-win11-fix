@@ -6,6 +6,24 @@
 
 Mitigations for **intermittent silence** and **audio-related BSoD** when using the official Avid **Fast Track Duo** driver **1.0.4** (`AvidFastTrackDuo.sys` 5.10.0.3505, 2013) on Windows 10/11.
 
+## Downloads (GitHub Releases)
+
+Tag a version (`v1.0.0`, …) or run the **Release packages** workflow. Artifacts:
+
+| File | Use when |
+|------|----------|
+| **`1.0.4-patch.exe`** | Official **1.0.4** is already installed — apply INF / APO hardening only (no uninstall) |
+| **`Fast-Track-Duo-Driver_fix.1.0.0.exe`** | Clean install of community **driver 1.0.5** — removes the previous Duo package, then installs the fixed INF + original Avid `.sys` |
+
+Full “which file for which situation” text shipped on each Release: [`RELEASE_NOTES.md`](RELEASE_NOTES.md) (EN + KO).
+
+Build locally:
+
+```powershell
+pwsh -File packaging/build.ps1
+# outputs under dist\
+```
+
 ## Symptoms → causes (short)
 
 | Symptom | Cause |
@@ -13,7 +31,7 @@ Mitigations for **intermittent silence** and **audio-related BSoD** when using t
 | While Chrome/Firefox is playing media, closing a tab or changing the URL sometimes kills **all** sound. Toggling Spatial Sound brings audio back | Stock INF attaches **Microsoft Audio Home Theater Effects** (`mssysfx` / `FX\0`). Spatial / APO remount unsticks a broken userspace audio graph |
 | BSoD while changing a Firefox tab URL during streaming | Kernel driver `AvidFastTrackDuo.sys` at offset **`+0x1849d`** reads a bad/paged buffer at DISPATCH_LEVEL (`0xD1` / `0xA`) |
 
-Evidence excerpts below omit host paths, accounts, and device instance IDs. Full ledger: [analysis/FINDINGS.md](analysis/FINDINGS.md).
+Evidence excerpts omit host paths, accounts, and device instance IDs. Full ledger: [analysis/FINDINGS.md](analysis/FINDINGS.md).
 
 ---
 
@@ -80,79 +98,56 @@ Disabling SysFx alone is often incomplete: the disable DWORD can be `1` while Pr
 
 ### 4. Why “just patch the .sys” is not a drop-in fix
 
-Fixing `+0x1849d` properly means validating buffer lifetime (cancel sync, stop DPCs before free, NonPaged residency, etc.) and shipping a **WHCP-attested** driver. Cross-signed 2013 binaries are outside what current Windows code integrity expects for new/modified kernel images. This repo therefore:
+Fixing `+0x1849d` properly means validating buffer lifetime and shipping a **WHCP-attested** driver. This repo therefore:
 
-- **does** strip the INF/registry APO path (silence mitigations; less stress on bad teardown paths)
-- **does not** redistribute a hacked unsigned `AvidFastTrackDuo.sys`
+- ships **driver 1.0.5** INF hardening (no Home Theater FX) with Avid’s original signed `.sys`
+- ships **1.0.4-patch** for in-place INF/APO cleanup
+- does **not** redistribute a hacked unsigned `.sys` binary patch
+
+Community package **Fast-Track-Duo-Driver_fix.1.0.0** = product wrapper around **driver INF 1.0.5.0**.
 
 ---
 
-## One-click patch install
+## Install
 
-### Prerequisites
+### A) Already on official 1.0.4 → patch only
 
-- Windows 10/11 x64
-- Fast Track Duo driver 1.0.4 already installed and the device enumerated
-- Administrator rights (UAC)
+1. Run **`1.0.4-patch.exe`** (UAC).
+2. Set **Spatial sound = Off** and disable **Enhancements** for Duo.
+3. Prefer USB 2.0.
 
-### Install
+Source equivalent: [`patch/Install-Patch.cmd`](patch/Install-Patch.cmd).
 
-1. Plug in the Duo (prefer a USB 2.0 port).
-2. Double-click [`patch/Install-Patch.cmd`](patch/Install-Patch.cmd).
-3. Accept the UAC prompt.
-4. When the log shows `WORKER_DONE`, you are done. Logs go under `patch/logs/` (gitignored).
+### B) Clean install → driver fix 1.0.0 (driver 1.0.5)
 
-Or from an elevated PowerShell:
+1. Close audio apps. Keep Duo plugged in (USB 2.0 preferred).
+2. Run **`Fast-Track-Duo-Driver_fix.1.0.0.exe`** (UAC).
+3. It uninstalls previous Duo packages, then `pnputil /add-driver` for [`driver/1.0.5`](driver/1.0.5).
+4. Spatial Off + Enhancements Off.
 
-```powershell
-cd <repo>\patch
-.\Install-Patch.ps1
-```
+If Windows rejects the package (modified INF has no matching CAT): turn off **Memory Integrity**, or enable testsigning, then re-run — or use **`1.0.4-patch.exe`** on top of the official installer instead.
 
-The installer discovers machine-specific names at runtime (nothing host-private is hard-coded):
-
-- `DriverStore\FileRepository\avidfasttrackduo.inf_*`
-- `C:\Windows\INF\oem*.inf` entries that mention `VID_0B0F&PID_2036` / Fast Track Duo
-- DeviceClasses `FX\0` / `MSFX` for that USB ID
-- Render endpoints whose properties mention Fast Track Duo
-
-### After install (once)
+### After either path (once)
 
 1. **Settings → System → Sound → Avid Fast Track Duo → Spatial sound = Off**
 2. Sound Control Panel → Duo → Properties → **Enhancements → Disable all**
-3. After a major Windows update, re-run `Install-Patch.cmd` if symptoms return
-
-### What the patch changes
-
-| Layer | Action |
-|-------|--------|
-| DriverStore + published `oem*.inf` | Replace with [`AvidFastTrackDuo.nofx.inf`](patch/AvidFastTrackDuo.nofx.inf) (no `mssysfx` / `FX\0`) |
-| DeviceClasses | Remove Duo `FX\0` / `MSFX` |
-| MMDevices | Set SysFx disable on Duo render endpoints |
-| `AvidFastTrackDuo.sys` | Unchanged |
+3. After a major Windows update, re-run the matching exe if symptoms return
 
 ---
 
 ## Repository layout
 
 ```
-patch/
-  Install-Patch.cmd          # one-click (UAC)
-  Install-Patch.ps1          # installer logic
-  AvidFastTrackDuo.nofx.inf  # INF without Home Theater FX
-  AvidFastTrackDuo.stock.inf # original INF backup
-analysis/
-  FINDINGS.md                # sanitized evidence
-assets/
-  icon.svg
-README.md                    # English (this file)
-README.ko.md                 # Korean
+patch/                 # 1.0.4 in-place patch sources
+driver/1.0.5/          # community driver 1.0.5 (INF + official .sys/.cat)
+packaging/             # ExeHost + build.ps1 → dist/*.exe
+.github/workflows/     # tag/manual → GitHub Release upload
+analysis/FINDINGS.md
+README.md / README.ko.md
 ```
-
-Official installer zips, extracts, minidumps, and host-path scratch files are excluded by [`.gitignore`](.gitignore).
 
 ## Limits
 
-- Does not repair the kernel UAF at `+0x1849d`.
-- A modified unsigned `.sys` will not load under modern WHCP / code integrity.
+- Does not repair the kernel UAF at `+0x1849d` inside `.sys`.
+- Full driver exe may need relaxed driver signature policy because the INF is intentionally modified.
 - Avoid slamming tab close / URL changes during heavy streaming when possible.
