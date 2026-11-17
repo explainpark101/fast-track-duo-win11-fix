@@ -1,0 +1,46 @@
+# --- Keep only docs, assets, and portable patch sources ---
+# Ignore everything else by default patterns below.
+
+# Official installer / extracted trees (large, redistributable separately)
+Install_Avid_Fast_Track_Duo_*.zip
+extracted_installer/
+unpacked_installer/
+msi32/
+msi64/
+driver_bin/
+driver_files/
+
+# Local analysis scratch (dumps, logs, machine-specific paths)
+analysis/**/*.dmp
+analysis/**/*.log
+analysis/**/*.txt
+analysis/**/*.ps1
+analysis/**/*.py
+analysis/**/*.err.txt
+# Keep published findings doc
+!analysis/FINDINGS.md
+
+# Patch runtime outputs / local copies of proprietary binaries
+patch/**/*.log
+patch/logs/
+patch/AvidFastTrackDuo.sys
+patch/Apply-Hardening.cmd
+patch/Apply-FastTrackDuo-Hardening.ps1
+patch/Remove-DuoHomeTheaterFx.ps1
+
+# OS / editor / secrets
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.swp
+*~
+.vscode/
+.idea/
+.env
+.env.*
+*.pem
+*.pfx
+*.key
+secrets/
+*.minidump
+MEMORY.DMP

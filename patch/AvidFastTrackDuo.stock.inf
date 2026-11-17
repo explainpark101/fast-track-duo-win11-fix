@@ -1,0 +1,141 @@
+;----------------------------------------------------------------------
+; Avid Fast Track Duo
+; Copyright (c) 2012 Avid Technology, Inc.
+;----------------------------------------------------------------------
+
+;==============================================================================
+[Version]
+Signature="$WINDOWS NT$"
+Class=MEDIA
+ClassGUID={4d36e96c-e325-11ce-bfc1-08002be10318}
+Provider=%MfgName%
+CatalogFile=AvidFastTrackDuo.cat
+DriverVer=05/24/2013,5.10.0.3505
+
+;==============================================================================
+[SourceDisksNames]
+1=%FASTTRACKDUO_DiskName%,,,
+
+[SourceDisksFiles]
+AvidFastTrackDuo.sys=1
+
+[DestinationDirs]
+FASTTRACKDUO.CopyList=12
+
+[FASTTRACKDUO.CopyList]
+AvidFastTrackDuo.sys
+
+;------------------------------------------------------------------------------
+; Manufacturer and Models
+;------------------------------------------------------------------------------
+[Manufacturer]
+%MfgName%=FASTTRACKDUO,NTAMD64
+
+;------------------------------------------------------------------------------
+; Model Section
+;------------------------------------------------------------------------------
+[FASTTRACKDUO.NTAMD64]
+%FASTTRACKDUO_DriverDesc%=FASTTRACKDUO_Install,USB\VID_0B0F&PID_2036&MI_00
+
+;------------------------------------------------------------------------------
+; Fast Track Duo
+;------------------------------------------------------------------------------
+[FASTTRACKDUO_Install.NTAMD64]
+Include=ks.inf,wdmaudio.inf
+Needs=KS.Registration,WDMAUDIO.Registration,mssysfx.CopyFilesAndRegister
+CopyFiles=FASTTRACKDUO.CopyList
+AddReg=FASTTRACKDUO.AddReg
+
+[FASTTRACKDUO_Install.NTAMD64.Services]
+AddService=AVIDUSBFASTTRACKDUO,0x00000002,FASTTRACKDUO.AddService
+
+[FASTTRACKDUO_Install.NTAMD64.Interfaces]
+AddInterface=%KSCATEGORY_TOPOLOGY%, %KSNAME_TopoFilter%, FASTTRACKDUO_Install.Interface.Topology
+AddInterface=%KSCATEGORY_AUDIO%, %KSNAME_SpeakerNodeRenderFilter%, FASTTRACKDUO_Install.Interface.SpeakerNodeRender
+
+[FASTTRACKDUO_Install.Interface.Topology]
+AddReg=FASTTRACKDUO_Install.AddReg.Topo
+
+[FASTTRACKDUO_Install.Interface.SpeakerNodeRender]
+AddReg=FASTTRACKDUO_Install.AddReg.FX
+
+[FASTTRACKDUO_Install.AddReg.Topo]
+HKR,,CLSID,,%CLSID_Proxy%
+HKR,,FriendlyName,,%FASTTRACKDUO_TopologyName%
+
+[FASTTRACKDUO_Install.AddReg.FX]
+HKR,"FX\\0",%PKEY_FriendlyName%,,%FX_FriendlyName%
+HKR,"FX\\0",%PKEY_FX_PreMixClsid%,,%FX_PREMIX_CLSID%
+HKR,"FX\\0",%PKEY_FX_PostMixClsid%,,%FX_POSTMIX_CLSID%
+HKR,"FX\\0",%PKEY_FX_UiClsid%,,%FX_UI_CLSID%
+HKR,"FX\\0",%PKEY_FX_Association%,,%KSNODETYPE_ANY%
+
+;------------------------------------------------------------------------------
+; Common
+;------------------------------------------------------------------------------
+[FASTTRACKDUO.AddReg]
+HKR,,AssociatedFilters,,"wdmaud,swmidi,redbook"
+HKR,,Driver,,AvidFastTrackDuo.sys
+HKR,,NTMPDriver,,"AvidFastTrackDuo.sys,sbemul.sys"
+
+HKR,Drivers,SubClasses,,"wave,midi,mixer"
+
+HKR,Drivers\wave\wdmaud.drv,Driver,,wdmaud.drv
+HKR,Drivers\midi\wdmaud.drv,Driver,,wdmaud.drv
+HKR,Drivers\mixer\wdmaud.drv,Driver,,wdmaud.drv
+
+; SwSynth
+HKLM,SYSTEM\CurrentControlSet\Services\swmidi,"Start",0x00010021,3
+
+; Branding
+HKR,Branding,icon,,"AvidFastTrackDuo.sys,114"
+HKR,Branding,bitmap,,"AvidFastTrackDuo.sys,115"
+HKR,Branding,url,,"http://www.avid.com/"
+
+; Description
+HKR,Drivers\wave\wdmaud.drv,Description,,%FASTTRACKDUO_DriverDesc%
+HKR,Drivers\midi\wdmaud.drv,Description,,%FASTTRACKDUO_DriverDesc%
+HKR,Drivers\mixer\wdmaud.drv,Description,,%FASTTRACKDUO_DriverDesc%
+
+;------------------------------------------------------------------------------
+[FASTTRACKDUO.AddService]
+DisplayName   = %FASTTRACKDUO_SvcName%
+ServiceType   = 1                  ; SERVICE_KERNEL_DRIVER
+StartType     = 3                  ; SERVICE_DEMAND_START
+ErrorControl  = 1                  ; SERVICE_ERROR_NORMAL
+ServiceBinary = %12%\AvidFastTrackDuo.sys
+
+;==============================================================================
+[Strings]
+;==============================================================================
+
+; Microsoft-defined
+KSCATEGORY_TOPOLOGY=	"{DDA54A40-1E4C-11D1-A050-405705C10000}"    ; from ksmedia.h
+KSCATEGORY_AUDIO =		"{6994AD04-93EF-11D0-A3CC-00A0C9223196}"
+CLSID_Proxy=			"{17CCA71B-ECD7-11D0-B908-00A0C9223196}"    ; from ksproxy.h
+
+; Avid-defined
+MfgName=				"Avid"
+FASTTRACKDUO_DiskName=		"Avid Fast Track Duo Driver Disk"
+FASTTRACKDUO_DriverDesc=    "Avid Fast Track Duo"
+FASTTRACKDUO_SvcName=       "Service for Avid Fast Track Duo"
+FASTTRACKDUO_TopologyName=  "Avid Fast Track Duo Mixer"
+KSNAME_TopoFilter=		"{D91E3B79-2666-44d2-BA56-6251BEEDAFBB}"    ; from DriverID.h
+KSNAME_SpeakerNodeRenderFilter =	"AVIDFASTTRACKDUOOUT12"
+
+; PropertyKeys
+PKEY_FX_Association =	"{D04E05A6-594B-4fb6-A80D-01AF5EED7D1D},0"
+PKEY_FX_PreMixClsid =	"{D04E05A6-594B-4fb6-A80D-01AF5EED7D1D},1"
+PKEY_FX_PostMixClsid =	"{D04E05A6-594B-4fb6-A80D-01AF5EED7D1D},2"
+PKEY_FX_UiClsid =		"{D04E05A6-594B-4fb6-A80D-01AF5EED7D1D},3"
+PKEY_FriendlyName =		"{D04E05A6-594B-4fb6-A80D-01AF5EED7D1D},4"
+
+FX_UI_CLSID      =	"{5860E1C5-F95C-4a7a-8EC8-8AEF24F379A1}"
+FX_PREMIX_CLSID  =	"{62dc1a93-ae24-464c-a43e-452f824c4250}"
+FX_POSTMIX_CLSID =	"{637c490d-eee3-4c0a-973f-371958802da2}"
+
+KSNODETYPE_ANY =	"{00000000-0000-0000-0000-000000000000}"
+
+;Localizable
+FX_FriendlyName =		"Microsoft Audio Home Theater Effects"
+
