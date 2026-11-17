@@ -12,8 +12,10 @@ internal static class Program
         try
         {
             var asm = Assembly.GetExecutingAssembly();
-            var title = ((AssemblyTitleAttribute)Attribute.GetCustomAttribute(
-                asm, typeof(AssemblyTitleAttribute)))?.Title
+            // C# 5-compatible: Framework csc (v4.0.30319) has no null-conditional ?.
+            var titleAttr = (AssemblyTitleAttribute)Attribute.GetCustomAttribute(
+                asm, typeof(AssemblyTitleAttribute));
+            var title = (titleAttr != null ? titleAttr.Title : null)
                 ?? Path.GetFileNameWithoutExtension(asm.Location)
                 ?? "FastTrackDuoPackage";
 
