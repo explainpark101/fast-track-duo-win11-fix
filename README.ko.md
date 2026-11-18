@@ -4,36 +4,49 @@
 
 **언어:** [English](README.md) · 한국어
 
-Avid **Fast Track Duo** 공식 드라이버 **1.0.4** (`AvidFastTrackDuo.sys` 5.10.0.3505, 2013) 를 Windows 10/11 에서 쓸 때 나타나는 **간헐적 무음** / **오디오 관련 BSoD** 완화 패치입니다.
+## 권장: Microsoft USB Audio (`usbaudio.sys`)
+
+Duo 는 **USB Audio Class 1.0** 입니다. 2013 Avid 패키지(`AvidFastTrackDuo.sys`)가 Windows inbox 드라이버보다 순위가 높아지며, 모던 WASAPI teardown 에서 알려진 **BSoD**(`+0x1849d`)의 원인입니다. **권장 해결:** 그 `.sys` 를 쓰지 않고 **Microsoft `usbaudio.sys`** 에 연결합니다.
+
+| Release 파일 | 용도 |
+|--------------|------|
+| **`Fast-Track-Duo-USBAudio.exe`** | **이것을 설치 (권장).** Avid OEM 순위를 제거하고 inbox USB Audio 로 바인딩 |
+
+```text
+1. Fast-Track-Duo-USBAudio.exe 실행 (UAC)
+2. 재부팅 요구 / Verify 실패 시 재부팅 후 필요하면 재실행
+3. 서비스 = usbaudio 확인 (AVIDUSBFASTTRACKDUO 가 아니어야 함)
+4. 공간 음향 Off · 향상 효과 Off · 가능하면 USB 2.0
+```
+
+저장소에서 동일 로직:
+
+```powershell
+sudo .\native-driver\usbaudio\Install-UsbAudio.cmd
+.\native-driver\usbaudio\Verify-UsbAudio.ps1   # PASS: bound to usbaudio
+```
+
+설명: [`native-driver/README.md`](native-driver/README.md) · 상황별 선택: [`RELEASE_NOTES.md`](RELEASE_NOTES.md).
+
+---
+
+Avid **Fast Track Duo** 공식 **1.0.4** (`AvidFastTrackDuo.sys` 5.10.0.3505, 2013) 의 **간헐적 무음** / **오디오 BSoD** 완화 프로젝트입니다.
 
 ## 다운로드 (GitHub Releases)
 
-버전 태그(`v1.0.0` …)를 푸시하거나 **Release packages** 워크플로를 실행하면 다음이 올라갑니다.
+버전 태그(`v1.0.0` …) 또는 **Release packages** 워크플로.
 
 | 파일 | 사용 시점 |
 |------|-----------|
-| **`1.0.4-patch.exe`** | 공식 **1.0.4** 가 이미 설치됨 — INF/APO 하드닝만 적용 (삭제 없음) |
-| **`Fast-Track-Duo-Driver_fix.1.0.0.exe`** | 커뮤니티 **드라이버 1.0.5** 클린 설치 — 기존 Duo 패키지 제거 후 고정 INF + 원본 Avid `.sys` 설치 |
-
-### 신규: Microsoft USB Audio 클래스 바인딩 (Avid `.sys` 교체)
-
-Duo 는 USB Audio Class 1.0 입니다. Windows 에 **`usbaudio.sys`** 가 이미 있고, Avid 패키지가 순위만 가로챕니다. 버그 있는 전용 커널 드라이버를 내려면:
-
-```powershell
-# 관리자 권한
-.\native-driver\usbaudio\Install-UsbAudio.cmd
-.\native-driver\usbaudio\Verify-UsbAudio.ps1   # service = usbaudio 여야 함
-```
-
-설명: [`native-driver/README.md`](native-driver/README.md).
-
-Release 본문에 넣는 상황별 안내 전문: [`RELEASE_NOTES.md`](RELEASE_NOTES.md) (영문 + 한국어).
+| **`Fast-Track-Duo-USBAudio.exe`** | **기본.** Avid `.sys` → Microsoft USB Audio 클래스 드라이버 |
+| **`1.0.4-patch.exe`** | 공식 **1.0.4** `.sys` 유지 — INF/APO 하드닝만 |
+| **`Fast-Track-Duo-Driver_fix.1.0.0.exe`** | 커뮤니티 **드라이버 1.0.5** 클린 설치 (수정 INF + **원본 Avid `.sys`**) |
 
 로컬 빌드:
 
 ```powershell
 pwsh -File packaging/build.ps1
-# 결과는 dist\ 아래
+# dist\ 에 Fast-Track-Duo-USBAudio.exe 포함
 ```
 
 ## 증상 → 원인 (요약)
@@ -110,56 +123,58 @@ SysFx 비활성 DWORD 만 `1` 로 두는 것으로는 부족한 경우가 많습
 
 ### 4. 왜 “.sys 만 고치면 되지”가 원클릭으로 안 되는가
 
-`+0x1849d` 를 제대로 고치려면 버퍼 수명 검증과 **WHCP 인증된** 드라이버 배포가 필요합니다. 이 저장소는:
+Avid 바이너리 안의 `+0x1849d` 를 고치려면 **WHCP 인증** 재빌드가 필요합니다. 이 저장소는:
 
-- Avid 원본 서명 `.sys` + **드라이버 1.0.5** INF 하드닝(Home Theater FX 제거)을 배포
-- 기존 1.0.4 위에는 **`1.0.4-patch`** 로 INF/APO 정리
+- **권장:** **`Fast-Track-Duo-USBAudio.exe`** — Microsoft `usbaudio.sys` 바인딩 (Avid `.sys` 미사용 → 해당 UAF 미적재)
+- 전용 스택이 필요한 사용자를 위해 **1.0.4-patch** / **드라이버 1.0.5** (INF/APO 만)도 유지
 - 해킹된 미서명 `.sys` 바이너리 패치는 **배포하지 않음**
-
-제품 이름 **Fast-Track-Duo-Driver_fix.1.0.0** = **드라이버 INF 1.0.5.0** 을 감싼 패키지입니다.
 
 ---
 
 ## 설치
 
-### A) 이미 공식 1.0.4 → 패치만
+### A) 권장 → USB Audio 클래스
+
+1. **`Fast-Track-Duo-USBAudio.exe`** 실행 (UAC).
+2. 재부팅이 필요하면 수행 후 서비스 **`usbaudio`** 확인.
+3. 공간 음향 Off + 향상 효과 Off · USB 2.0 권장.
+
+소스: [`native-driver/usbaudio`](native-driver/usbaudio).
+
+### B) 공식 1.0.4 유지 → 패치만
 
 1. **`1.0.4-patch.exe`** 실행 (UAC).
-2. Duo **공간 음향 = 끄기**, **향상 효과 사용 안 함**.
-3. 가능하면 USB 2.0.
+2. 공간 음향 Off + 향상 효과 Off.
 
-소스 동등물: [`patch/Install-Patch.cmd`](patch/Install-Patch.cmd).
+소스: [`patch/Install-Patch.cmd`](patch/Install-Patch.cmd).
 
-### B) 클린 설치 → Driver Fix 1.0.0 (드라이버 1.0.5)
+### C) 클린 설치 → Driver Fix 1.0.0 (여전히 Avid `.sys`)
 
-1. 오디오 앱을 종료하고 Duo 를 연결 (USB 2.0 권장).
-2. **`Fast-Track-Duo-Driver_fix.1.0.0.exe`** 실행 (UAC).
-3. 기존 Duo 패키지를 지운 뒤 [`driver/1.0.5`](driver/1.0.5) 를 `pnputil /add-driver` 로 설치합니다.
-4. 공간 음향 Off + 향상 효과 Off.
+1. **`Fast-Track-Duo-Driver_fix.1.0.0.exe`** 실행 (UAC).
+2. 수정 INF 때문에 메모리 무결성 끄기 / testsigning 이 필요할 수 있음.
 
-패키지가 거부되면 (INF 변경으로 CAT 불일치): **메모리 무결성** 끄기 또는 testsigning 후 재실행 — 또는 공식 1.0.4 설치 후 **`1.0.4-patch.exe`** 를 쓰세요.
+### 설치 후 한 번
 
-### 어느 쪽이든 설치 후 한 번
-
-1. **설정 → 시스템 → 소리 → Avid Fast Track Duo → 공간 음향 = 끄기**
-2. 제어판 **소리** → Duo → 속성 → **향상 효과 → 모두 사용 안 함**
-3. 큰 Windows 업데이트 후 증상이 다시 나오면 해당 exe 재실행
+1. **설정 → 시스템 → 소리 → Duo → 공간 음향 = 끄기**
+2. 제어판 **소리** → Duo → **향상 효과 → 모두 사용 안 함**
+3. 큰 Windows 업데이트 후 `Verify-UsbAudio.ps1` 로 재확인하거나 증상이 있으면 해당 exe 재실행
 
 ---
 
 ## 저장소 구성
 
 ```
-patch/                 # 1.0.4 인플레이스 패치 소스
-driver/1.0.5/          # 커뮤니티 드라이버 1.0.5 (INF + 공식 .sys/.cat)
-packaging/             # ExeHost + build.ps1 → dist/*.exe
-.github/workflows/     # 태그/수동 → GitHub Release 업로드
+native-driver/usbaudio/   # 권장 Microsoft usbaudio 바인딩 (+ 릴리스 EXE 페이로드)
+patch/                    # 1.0.4 인플레이스 패치 소스
+driver/1.0.5/             # 커뮤니티 드라이버 1.0.5 (INF + 공식 .sys/.cat)
+packaging/                # ExeHost + build.ps1 → dist/*.exe
+.github/workflows/        # 태그/수동 → GitHub Release 업로드
 analysis/FINDINGS.md
 README.md / README.ko.md
 ```
 
 ## 한계
 
-- `.sys` 내부 `+0x1849d` UAF 자체는 고치지 않습니다.
-- 풀 드라이버 exe 는 INF 가 수정되어 드라이버 서명 정책을 완화해야 할 수 있습니다.
-- 스트리밍 중 탭을 매우 빠르게 닫거나 주소를 바꾸는 동작은 가능하면 줄이는 것이 안전합니다.
+- **`Fast-Track-Duo-USBAudio.exe`** 는 Avid `.sys` 를 로드하지 않아 해당 UAF 를 피합니다. 2013 전용 믹서 기능과 100% 동등하지 않을 수 있습니다.
+- 레거시 패치 / 1.0.5 경로는 `.sys` 내부 `+0x1849d` 를 **고치지 않습니다**.
+- **Driver_fix** exe 는 수정 INF 때문에 서명 정책 완화가 필요할 수 있습니다.

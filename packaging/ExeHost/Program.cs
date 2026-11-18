@@ -101,6 +101,7 @@ internal static class Program
     {
         var preferred = new[]
         {
+            Path.Combine(root, "Install-UsbAudio.ps1"),
             Path.Combine(root, "Install-Driver.ps1"),
             Path.Combine(root, "Install-Patch.ps1"),
         };

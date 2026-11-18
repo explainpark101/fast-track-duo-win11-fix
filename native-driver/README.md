@@ -30,6 +30,11 @@ WASAPI teardown.
 
 ## Install
 
+**Release binary (preferred for end users):** `dist/Fast-Track-Duo-USBAudio.exe`
+(from GitHub Releases / `packaging/build.ps1`). Same payload as this folder.
+
+From source:
+
 1. Close audio apps.
 2. Run elevated: [`usbaudio/Install-UsbAudio.cmd`](usbaudio/Install-UsbAudio.cmd)
 3. If Verify still shows Avid: **reboot once**, then run the installer again
