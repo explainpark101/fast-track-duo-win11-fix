@@ -2,6 +2,7 @@
 <#
 .SYNOPSIS
   Build release executables with .NET Framework csc (reliable on mixed SDK hosts):
+    - dist/Fast-Track-Duo-USBAudio.exe          (recommended: bind Microsoft usbaudio.sys)
     - dist/1.0.4-patch.exe
     - dist/Fast-Track-Duo-Driver_fix.1.0.0.exe
 
@@ -18,6 +19,7 @@ $Dist = Join-Path $Root 'dist'
 $Staging = Join-Path $Root 'packaging\staging'
 $PatchDir = Join-Path $Root 'patch'
 $DriverDir = Join-Path $Root 'driver\1.0.5'
+$UsbAudioDir = Join-Path $Root 'native-driver\usbaudio'
 $ProgramCs = Join-Path $Root 'packaging\ExeHost\Program.cs'
 $Manifest = Join-Path $Root 'packaging\ExeHost\app.manifest'
 
@@ -122,10 +124,22 @@ Write-Step 'Prepare'
 New-Item -ItemType Directory -Force -Path $Dist, $Staging | Out-Null
 Ensure-DriverBinaries
 
+if (-not (Test-Path (Join-Path $UsbAudioDir 'Install-UsbAudio.ps1'))) { throw 'Missing native-driver\usbaudio\Install-UsbAudio.ps1' }
 if (-not (Test-Path (Join-Path $PatchDir 'Install-Patch.ps1'))) { throw 'Missing patch\Install-Patch.ps1' }
 if (-not (Test-Path (Join-Path $DriverDir 'Install-Driver.ps1'))) { throw 'Missing driver\1.0.5\Install-Driver.ps1' }
 if (-not (Test-Path (Join-Path $DriverDir 'AvidFastTrackDuo.inf'))) { throw 'Missing driver\1.0.5\AvidFastTrackDuo.inf' }
 if (-not (Test-Path $ProgramCs)) { throw 'Missing packaging\ExeHost\Program.cs' }
+
+Write-Step 'Stage Fast-Track-Duo-USBAudio payload'
+$usbStage = Join-Path $Staging 'payload-usbaudio'
+if (Test-Path $usbStage) { Remove-Item $usbStage -Recurse -Force }
+New-Item -ItemType Directory -Force -Path $usbStage | Out-Null
+Copy-Item (Join-Path $UsbAudioDir 'Install-UsbAudio.ps1') $usbStage -Force
+Copy-Item (Join-Path $UsbAudioDir 'Verify-UsbAudio.ps1') $usbStage -Force
+Copy-Item (Join-Path $UsbAudioDir 'Install-UsbAudio.cmd') $usbStage -Force -ErrorAction SilentlyContinue
+Copy-Item (Join-Path $UsbAudioDir 'FastTrackDuoUsbAudio.inf') $usbStage -Force -ErrorAction SilentlyContinue
+$usbZip = Join-Path $Staging 'payload-usbaudio.zip'
+New-ZipFromFolder $usbStage $usbZip
 
 Write-Step 'Stage 1.0.4-patch payload'
 $patchStage = Join-Path $Staging 'payload-1.0.4-patch'
@@ -146,6 +160,12 @@ Copy-Item (Join-Path $DriverDir 'AvidFastTrackDuo.sys') $drvStage -Force
 Copy-Item (Join-Path $DriverDir 'AvidFastTrackDuo.cat') $drvStage -Force -ErrorAction SilentlyContinue
 $drvZip = Join-Path $Staging 'payload-driver-fix.zip'
 New-ZipFromFolder $drvStage $drvZip
+
+Publish-Package `
+  -AssemblyName 'Fast-Track-Duo-USBAudio' `
+  -Title 'Fast Track Duo USB Audio Class' `
+  -PayloadZip $usbZip `
+  -OutExe (Join-Path $Dist 'Fast-Track-Duo-USBAudio.exe')
 
 Publish-Package `
   -AssemblyName '1.0.4-patch' `

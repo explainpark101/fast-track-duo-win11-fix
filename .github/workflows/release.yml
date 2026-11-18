@@ -56,6 +56,7 @@ jobs:
         with:
           name: fast-track-duo-fix-packages
           path: |
+            dist/Fast-Track-Duo-USBAudio.exe
             dist/1.0.4-patch.exe
             dist/Fast-Track-Duo-Driver_fix.1.0.0.exe
 
@@ -67,6 +68,7 @@ jobs:
           generate_release_notes: true
           body_path: RELEASE_NOTES.md
           files: |
+            dist/Fast-Track-Duo-USBAudio.exe
             dist/1.0.4-patch.exe
             dist/Fast-Track-Duo-Driver_fix.1.0.0.exe
         env:

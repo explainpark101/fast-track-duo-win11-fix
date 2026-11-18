@@ -4,36 +4,49 @@
 
 **Language:** English · [한국어](README.ko.md)
 
-Mitigations for **intermittent silence** and **audio-related BSoD** when using the official Avid **Fast Track Duo** driver **1.0.4** (`AvidFastTrackDuo.sys` 5.10.0.3505, 2013) on Windows 10/11.
+## Recommended: Microsoft USB Audio (`usbaudio.sys`)
+
+Duo is **USB Audio Class 1.0**. The 2013 Avid package (`AvidFastTrackDuo.sys`) outranks Windows’ inbox driver and is what causes the known **BSoD** (`+0x1849d`) under modern WASAPI teardown. **Preferred fix:** stop using that `.sys` and bind **Microsoft `usbaudio.sys`**.
+
+| Release file | Action |
+|--------------|--------|
+| **`Fast-Track-Duo-USBAudio.exe`** | **Install this (recommended).** Removes Avid OEM ranking and binds inbox USB Audio. |
+
+```text
+1. Run Fast-Track-Duo-USBAudio.exe (UAC)
+2. Reboot if Windows says so / if Verify fails, then run again if needed
+3. Confirm service = usbaudio  (not AVIDUSBFASTTRACKDUO)
+4. Spatial sound Off · Enhancements disabled · prefer USB 2.0
+```
+
+From a git checkout (same installer logic):
+
+```powershell
+sudo .\native-driver\usbaudio\Install-UsbAudio.cmd
+.\native-driver\usbaudio\Verify-UsbAudio.ps1   # PASS: bound to usbaudio
+```
+
+Details: [`native-driver/README.md`](native-driver/README.md) · full chooser: [`RELEASE_NOTES.md`](RELEASE_NOTES.md).
+
+---
+
+Mitigations for **intermittent silence** and **audio-related BSoD** with official Avid **1.0.4** (`AvidFastTrackDuo.sys` 5.10.0.3505, 2013) on Windows 10/11.
 
 ## Downloads (GitHub Releases)
 
-Tag a version (`v1.0.0`, …) or run the **Release packages** workflow. Artifacts:
+Tag a version (`v1.0.0`, …) or run the **Release packages** workflow.
 
 | File | Use when |
 |------|----------|
-| **`1.0.4-patch.exe`** | Official **1.0.4** is already installed — apply INF / APO hardening only (no uninstall) |
-| **`Fast-Track-Duo-Driver_fix.1.0.0.exe`** | Clean install of community **driver 1.0.5** — removes the previous Duo package, then installs the fixed INF + original Avid `.sys` |
-
-### New: Microsoft USB Audio class binding (replaces Avid `.sys`)
-
-Duo is USB Audio Class 1.0. Windows already has **`usbaudio.sys`**; Avid’s package only outranks it. To drop the buggy proprietary kernel driver:
-
-```powershell
-# elevated
-.\native-driver\usbaudio\Install-UsbAudio.cmd
-.\native-driver\usbaudio\Verify-UsbAudio.ps1   # expect service = usbaudio
-```
-
-Details: [`native-driver/README.md`](native-driver/README.md).
-
-Full “which file for which situation” text shipped on each Release: [`RELEASE_NOTES.md`](RELEASE_NOTES.md) (EN + KO).
+| **`Fast-Track-Duo-USBAudio.exe`** | **Default.** Replace Avid `.sys` with Microsoft USB Audio class driver |
+| **`1.0.4-patch.exe`** | Keep official **1.0.4** `.sys` — INF / APO hardening only |
+| **`Fast-Track-Duo-Driver_fix.1.0.0.exe`** | Community **driver 1.0.5** clean install (fixed INF + **original Avid `.sys`**) |
 
 Build locally:
 
 ```powershell
 pwsh -File packaging/build.ps1
-# outputs under dist\
+# outputs under dist\  (includes Fast-Track-Duo-USBAudio.exe)
 ```
 
 ## Symptoms → causes (short)
@@ -110,56 +123,58 @@ Disabling SysFx alone is often incomplete: the disable DWORD can be `1` while Pr
 
 ### 4. Why “just patch the .sys” is not a drop-in fix
 
-Fixing `+0x1849d` properly means validating buffer lifetime and shipping a **WHCP-attested** driver. This repo therefore:
+Fixing `+0x1849d` inside Avid’s binary means a **WHCP-attested** rebuild. This repo therefore:
 
-- ships **driver 1.0.5** INF hardening (no Home Theater FX) with Avid’s original signed `.sys`
-- ships **1.0.4-patch** for in-place INF/APO cleanup
+- **Recommended:** **`Fast-Track-Duo-USBAudio.exe`** — bind Microsoft `usbaudio.sys` (no Avid `.sys`, so that UAF site is not loaded)
+- still ships **1.0.4-patch** / **driver 1.0.5** for users who must keep the proprietary stack (INF/APO only)
 - does **not** redistribute a hacked unsigned `.sys` binary patch
-
-Community package **Fast-Track-Duo-Driver_fix.1.0.0** = product wrapper around **driver INF 1.0.5.0**.
 
 ---
 
 ## Install
 
-### A) Already on official 1.0.4 → patch only
+### A) Recommended → USB Audio class
+
+1. Run **`Fast-Track-Duo-USBAudio.exe`** (UAC).
+2. Reboot if Windows requires it; confirm service **`usbaudio`**.
+3. Spatial Off + Enhancements Off; prefer USB 2.0.
+
+Source: [`native-driver/usbaudio`](native-driver/usbaudio).
+
+### B) Keep official 1.0.4 → patch only
 
 1. Run **`1.0.4-patch.exe`** (UAC).
-2. Set **Spatial sound = Off** and disable **Enhancements** for Duo.
-3. Prefer USB 2.0.
+2. Spatial Off + Enhancements Off.
 
-Source equivalent: [`patch/Install-Patch.cmd`](patch/Install-Patch.cmd).
+Source: [`patch/Install-Patch.cmd`](patch/Install-Patch.cmd).
 
-### B) Clean install → driver fix 1.0.0 (driver 1.0.5)
+### C) Clean install → driver fix 1.0.0 (still Avid `.sys`)
 
-1. Close audio apps. Keep Duo plugged in (USB 2.0 preferred).
-2. Run **`Fast-Track-Duo-Driver_fix.1.0.0.exe`** (UAC).
-3. It uninstalls previous Duo packages, then `pnputil /add-driver` for [`driver/1.0.5`](driver/1.0.5).
-4. Spatial Off + Enhancements Off.
+1. Run **`Fast-Track-Duo-Driver_fix.1.0.0.exe`** (UAC).
+2. May need Memory Integrity off / testsigning (modified INF, no matching CAT).
 
-If Windows rejects the package (modified INF has no matching CAT): turn off **Memory Integrity**, or enable testsigning, then re-run — or use **`1.0.4-patch.exe`** on top of the official installer instead.
+### After install (once)
 
-### After either path (once)
-
-1. **Settings → System → Sound → Avid Fast Track Duo → Spatial sound = Off**
-2. Sound Control Panel → Duo → Properties → **Enhancements → Disable all**
-3. After a major Windows update, re-run the matching exe if symptoms return
+1. **Settings → System → Sound → Duo → Spatial sound = Off**
+2. Sound Control Panel → Duo → **Enhancements → Disable all**
+3. After a major Windows update, re-check with `Verify-UsbAudio.ps1` or re-run the matching exe if symptoms return
 
 ---
 
 ## Repository layout
 
 ```
-patch/                 # 1.0.4 in-place patch sources
-driver/1.0.5/          # community driver 1.0.5 (INF + official .sys/.cat)
-packaging/             # ExeHost + build.ps1 → dist/*.exe
-.github/workflows/     # tag/manual → GitHub Release upload
+native-driver/usbaudio/   # recommended Microsoft usbaudio bind (+ release EXE payload)
+patch/                    # 1.0.4 in-place patch sources
+driver/1.0.5/             # community driver 1.0.5 (INF + official .sys/.cat)
+packaging/                # ExeHost + build.ps1 → dist/*.exe
+.github/workflows/        # tag/manual → GitHub Release upload
 analysis/FINDINGS.md
 README.md / README.ko.md
 ```
 
 ## Limits
 
-- Does not repair the kernel UAF at `+0x1849d` inside `.sys`.
-- Full driver exe may need relaxed driver signature policy because the INF is intentionally modified.
-- Avoid slamming tab close / URL changes during heavy streaming when possible.
+- **`Fast-Track-Duo-USBAudio.exe`** avoids the Avid `.sys` UAF by not loading it; class-driver feature parity may differ from the 2013 package.
+- Legacy patch / 1.0.5 paths **do not** repair `+0x1849d` inside `.sys`.
+- Full **Driver_fix** exe may need relaxed driver signature policy (modified INF).
