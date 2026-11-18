@@ -1,0 +1,14 @@
+x64/
+ARM64/
+Debug/
+Release/
+*.user
+*.log
+*.tlog
+*.obj
+*.pdb
+*.sys
+*.cer
+*.ilk
+*.exp
+*.lib

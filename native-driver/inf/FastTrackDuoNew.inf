@@ -1,0 +1,80 @@
+;----------------------------------------------------------------------
+; FastTrackDuoNew — experimental AVStream USB audio minidriver (WIP)
+; Hardware: USB\VID_0B0F&PID_2036&MI_00
+;
+; No mssysfx / Home Theater FX (silence-class mitigation).
+; Requires test signing until WHCP attestation exists.
+;----------------------------------------------------------------------
+
+[Version]
+Signature="$WINDOWS NT$"
+Class=MEDIA
+ClassGUID={4d36e96c-e325-11ce-bfc1-08002be10318}
+Provider=%ProviderName%
+DriverVer=11/18/2026,0.1.0.0
+PnpLockdown=1
+
+[SourceDisksNames]
+1=%DiskName%,,,
+
+[SourceDisksFiles]
+FastTrackDuoNew.sys=1
+
+[DestinationDirs]
+FTD.CopyList=12
+
+[FTD.CopyList]
+FastTrackDuoNew.sys
+
+[Manufacturer]
+%ProviderName%=FTD,NTAMD64
+
+[FTD.NTAMD64]
+%FTD.DeviceDesc%=FTD_Install,USB\VID_0B0F&PID_2036&MI_00
+
+[FTD_Install.NTAMD64]
+Include=ks.inf,wdmaudio.inf
+Needs=KS.Registration,WDMAUDIO.Registration
+CopyFiles=FTD.CopyList
+AddReg=FTD.AddReg
+
+[FTD_Install.NTAMD64.Services]
+AddService=FTDUSBNEW,0x00000002,FTD.AddService
+
+[FTD_Install.NTAMD64.Interfaces]
+AddInterface=%KSCATEGORY_AUDIO%,%FTD.RenderRef%,FTD.Interface.Render
+
+[FTD.Interface.Render]
+AddReg=FTD.Interface.Render.AddReg
+
+[FTD.Interface.Render.AddReg]
+HKR,,CLSID,,%KSProxy.CLSID%
+HKR,,FriendlyName,,%FTD.DeviceDesc%
+
+[FTD.AddReg]
+HKR,,AssociatedFilters,,"wdmaud,swmidi,redbook"
+HKR,,Driver,,FastTrackDuoNew.sys
+HKR,,NTMPDriver,,FastTrackDuoNew.sys
+
+HKR,Drivers,SubClasses,,"wave,mixer"
+HKR,Drivers\wave\wdmaud.drv,Driver,,wdmaud.drv
+HKR,Drivers\mixer\wdmaud.drv,Driver,,wdmaud.drv
+HKR,Drivers\wave\wdmaud.drv,Description,,%FTD.DeviceDesc%
+HKR,Drivers\mixer\wdmaud.drv,Description,,%FTD.DeviceDesc%
+
+[FTD.AddService]
+DisplayName    = %FTD.ServiceDesc%
+ServiceType    = 1
+StartType      = 3
+ErrorControl   = 1
+ServiceBinary  = %12%\FastTrackDuoNew.sys
+
+[Strings]
+ProviderName     = "Fast Track Duo Community (experimental)"
+DiskName         = "FastTrackDuoNew Installation Disk"
+FTD.DeviceDesc   = "Fast Track Duo (New AVStream Driver)"
+FTD.ServiceDesc  = "Fast Track Duo New USB Audio"
+; Must match FTD_RENDER_FILTER_REFERENCE in ftd_common.h
+FTD.RenderRef    = "{8F3E2A71-9C4B-4D6E-B2A1-7E5D9F0C3A18}"
+KSCATEGORY_AUDIO = "{6994AD04-93EF-11D0-A3CC-00A0C9223196}"
+KSProxy.CLSID    = "{17CCA71B-ECD7-11D0-B908-00A0C9223196}"
