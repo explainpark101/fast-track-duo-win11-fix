@@ -15,6 +15,18 @@ Tag a version (`v1.0.0`, …) or run the **Release packages** workflow. Artifact
 | **`1.0.4-patch.exe`** | Official **1.0.4** is already installed — apply INF / APO hardening only (no uninstall) |
 | **`Fast-Track-Duo-Driver_fix.1.0.0.exe`** | Clean install of community **driver 1.0.5** — removes the previous Duo package, then installs the fixed INF + original Avid `.sys` |
 
+### New: Microsoft USB Audio class binding (replaces Avid `.sys`)
+
+Duo is USB Audio Class 1.0. Windows already has **`usbaudio.sys`**; Avid’s package only outranks it. To drop the buggy proprietary kernel driver:
+
+```powershell
+# elevated
+.\native-driver\usbaudio\Install-UsbAudio.cmd
+.\native-driver\usbaudio\Verify-UsbAudio.ps1   # expect service = usbaudio
+```
+
+Details: [`native-driver/README.md`](native-driver/README.md).
+
 Full “which file for which situation” text shipped on each Release: [`RELEASE_NOTES.md`](RELEASE_NOTES.md) (EN + KO).
 
 Build locally:

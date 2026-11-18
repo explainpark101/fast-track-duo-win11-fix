@@ -1,0 +1,87 @@
+;------------------------------------------------------------------------------
+; Fast Track Duo — Microsoft USB Audio class driver binding (UAC 1.0)
+;
+; Evidence (this device on Windows 11):
+;   Compatible IDs include USB\Class_01&SubClass_01&Prot_00
+;   Inbox wdma_usb.inf / usbaudio.sys already matches, but is outranked by
+;   Avid's VID/PID package (AvidFastTrackDuo.sys 5.10.0.3505).
+;
+; This INF rebinds USB\VID_0B0F&PID_2036&MI_00 to the inbox usbaudio.sys
+; (same stack Mac uses as "class-compliant"), without Home Theater / SysFx
+; registration (silence-class mitigation). No third-party .sys is shipped.
+;------------------------------------------------------------------------------
+
+[Version]
+Signature   = "$WINDOWS NT$"
+Class       = MEDIA
+ClassGUID   = {4d36e96c-e325-11ce-bfc1-08002be10318}
+Provider    = %ProviderName%
+DriverVer   = 11/18/2026,2.0.0.0
+PnpLockdown = 1
+
+[DestinationDirs]
+DefaultDestDir = 12
+
+[Manufacturer]
+%ProviderName% = FTD,NTamd64
+
+[FTD.NTamd64]
+%FTD.DeviceDesc% = FTD_USBAudio, USB\VID_0B0F&PID_2036&MI_00
+%FTD.DeviceDesc% = FTD_USBAudio, USB\VID_0B0F&PID_2036&REV_0102&MI_00
+
+;---- Install: inbox usbaudio.sys via wdma_usb.inf OEM hooks, no mssysfx ----
+[FTD_USBAudio]
+Include = ks.inf, wdmaudio.inf, wdma_usb.inf
+Needs   = KS.Registration, WDMAUDIO.Registration, USBAudioOEM
+AddProperty = FTD.AddProp
+
+[FTD_USBAudio.NTamd64]
+Include = ks.inf, wdmaudio.inf, wdma_usb.inf
+Needs   = KS.Registration, WDMAUDIO.Registration, USBAudioOEM
+AddProperty = FTD.AddProp
+
+[FTD.AddProp]
+GenericDriverInstalled,,,,1
+
+[FTD_USBAudio.Services]
+Include = wdma_usb.inf
+Needs   = USBAudioOEM.Services
+
+[FTD_USBAudio.NTamd64.Services]
+Include = wdma_usb.inf
+Needs   = USBAudioOEM.Services
+
+; Interfaces without USBAudio.SysFx.Render / MSFX (no Home Theater APO)
+[FTD_USBAudio.Interfaces]
+AddInterface = %KSCATEGORY_AUDIO%,   "GLOBAL", FTD.Interface,
+AddInterface = %KSCATEGORY_RENDER%,  "GLOBAL", FTD.Interface,
+AddInterface = %KSCATEGORY_CAPTURE%, "GLOBAL", FTD.Interface,
+
+[FTD_USBAudio.NTamd64.Interfaces]
+AddInterface = %KSCATEGORY_AUDIO%,   "GLOBAL", FTD.Interface,
+AddInterface = %KSCATEGORY_RENDER%,  "GLOBAL", FTD.Interface,
+AddInterface = %KSCATEGORY_CAPTURE%, "GLOBAL", FTD.Interface,
+
+[FTD.Interface]
+AddReg = FTD.Interface.AddReg, FTD.EPProperties.AddReg
+
+[FTD.Interface.AddReg]
+HKR,,FriendlyName,,%FTD.DeviceDesc%
+HKR,,CurveType,1,01,00,00,00
+HKR,,CLSID,,%Proxy.CLSID%
+
+; 3rd-party INF must use EP\\n (not MSEP\\n)
+[FTD.EPProperties.AddReg]
+HKR,"EP\\0",%PKEY_AudioEndpoint_Association%,,%KSNODETYPE_ANY%
+HKR,"EP\\0",%PKEY_AudioEndpoint_Supports_EventDriven_Mode%,0x00010001,0x1
+
+[Strings]
+ProviderName = "Fast Track Duo Community"
+FTD.DeviceDesc = "Fast Track Duo (USB Audio Class)"
+Proxy.CLSID = "{17CCA71B-ECD7-11D0-B908-00A0C9223196}"
+KSCATEGORY_AUDIO = "{6994AD04-93EF-11D0-A3CC-00A0C9223196}"
+KSCATEGORY_RENDER = "{65E8773E-8F56-11D0-A3B9-00A0C9223196}"
+KSCATEGORY_CAPTURE = "{65E8773D-8F56-11D0-A3B9-00A0C9223196}"
+PKEY_AudioEndpoint_Association = "{1DA5D803-D492-4EDD-8C23-E0C0FFEE7F0E},2"
+PKEY_AudioEndpoint_Supports_EventDriven_Mode = "{1DA5D803-D492-4EDD-8C23-E0C0FFEE7F0E},7"
+KSNODETYPE_ANY = "{00000000-0000-0000-0000-000000000000}"
