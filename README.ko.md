@@ -15,6 +15,18 @@ Avid **Fast Track Duo** 공식 드라이버 **1.0.4** (`AvidFastTrackDuo.sys` 5.
 | **`1.0.4-patch.exe`** | 공식 **1.0.4** 가 이미 설치됨 — INF/APO 하드닝만 적용 (삭제 없음) |
 | **`Fast-Track-Duo-Driver_fix.1.0.0.exe`** | 커뮤니티 **드라이버 1.0.5** 클린 설치 — 기존 Duo 패키지 제거 후 고정 INF + 원본 Avid `.sys` 설치 |
 
+### 신규: Microsoft USB Audio 클래스 바인딩 (Avid `.sys` 교체)
+
+Duo 는 USB Audio Class 1.0 입니다. Windows 에 **`usbaudio.sys`** 가 이미 있고, Avid 패키지가 순위만 가로챕니다. 버그 있는 전용 커널 드라이버를 내려면:
+
+```powershell
+# 관리자 권한
+.\native-driver\usbaudio\Install-UsbAudio.cmd
+.\native-driver\usbaudio\Verify-UsbAudio.ps1   # service = usbaudio 여야 함
+```
+
+설명: [`native-driver/README.md`](native-driver/README.md).
+
 Release 본문에 넣는 상황별 안내 전문: [`RELEASE_NOTES.md`](RELEASE_NOTES.md) (영문 + 한국어).
 
 로컬 빌드:

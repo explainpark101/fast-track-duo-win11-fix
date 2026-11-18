@@ -1,73 +1,61 @@
-# Fast Track Duo — new AVStream USB audio driver (WIP)
+# Fast Track Duo — new driver (USB Audio Class)
 
-Experimental **from-scratch** kernel minidriver intended to replace the 2013
-`AvidFastTrackDuo.sys` path for `USB\VID_0B0F&PID_2036&MI_00`.
+## Goal
 
-This is **not** a binary patch of Avid’s image. Goal: fix the known render-path
-use-after-free (legacy `+0x1849d`) by owning stream lifetime explicitly, and
-ship without Home Theater APO registration.
+Replace Avid’s 2013 `AvidFastTrackDuo.sys` (BSoD at `+0x1849d`) with a driver
+stack you can **install and use for real audio**.
 
-## Status
+## What actually works
 
-| Area | State |
-|------|--------|
-| Branch scaffold (AVStream descriptors, INF, stream gate) | **Started** |
-| USB configuration / isochronous pipes | TODO |
-| PCM format negotiation vs real Duo descriptors | TODO (stubs: 44.1/48 kHz, 16-bit stereo) |
-| Capture / mixer / MIDI | TODO |
-| Production code signing + WHCP | Blocked (needs EV cert + attestation) |
+| Path | Role |
+|------|------|
+| **[`usbaudio/`](usbaudio/)** | **Supported.** Rebind `USB\VID_0B0F&PID_2036&MI_00` to Microsoft **`usbaudio.sys`** (UAC 1.0), no Home Theater SysFx in our INF. |
+| [`experimental-avstream/`](experimental-avstream/) | Research scaffold for a custom `.sys`. Needs WDK + WHCP. Not installable for daily use. |
 
-Existing INF/APO mitigations under `patch/` and `driver/1.0.5/` remain the
-supported user-facing fix until this driver can stream and be signed.
+### Why inbox `usbaudio.sys`?
 
-## Design notes
-
-1. **Stack**: WDM + AVStream (`KsInitializeDriver`), same class of driver as the
-   original package, so Windows Audio / WASAPI can bind via KS pins.
-2. **UAF mitigation**: `stream_gate.c` uses a generation counter + in-flight
-   count. Pin `SetState(STOP)` drains in-flight `Process` callbacks **before**
-   any buffer/MDL teardown. `Process` must not touch stream buffers unless
-   `FtdGateTryEnter` succeeds.
-3. **INF**: no `mssysfx` / `FX\0` Home Theater entries (silence class of bugs).
-4. **Service / binary names** are new (`FTDUSBNEW` / `FastTrackDuoNew.sys`) so
-   they do not overwrite Avid’s Authenticode-signed package accidentally.
-
-## Build (local WDK)
-
-Requires [Windows Driver Kit](https://learn.microsoft.com/windows-hardware/drivers/download-the-wdk)
-and Visual Studio with the **WindowsKernelModeDriver10.0** platform toolset
-(Spectre-mitigated libs matching your WDK). Without the WDK VS extension, MSBuild
-fails with `MSB8020` (toolset not found) — that is expected on a stock IDE install.
+On this hardware Windows already reports compatible IDs:
 
 ```text
-msbuild native-driver\FastTrackDuoNew.sln /p:Configuration=Release /p:Platform=x64
+USB\Class_01&SubClass_01&Prot_00
+USB\Class_01&SubClass_01
+USB\Class_01
 ```
 
-Output (typical): `native-driver\x64\Release\FastTrackDuoNew.sys`
+`pnputil /enum-devices ... /drivers` shows **`wdma_usb.inf` / usbaudio** as a
+matching driver, **outranked** only by Avid’s VID/PID package. Avid documents
+Duo as **class-compliant on Mac**. The proprietary Windows `.sys` is not required
+for basic PCM I/O; it is what introduces the known kernel UAF under modern
+WASAPI teardown.
 
-Do **not** install on a daily driver without test signing / a spare machine.
+## Install
 
-## Test install (testsigning only)
+1. Close audio apps.
+2. Run elevated: [`usbaudio/Install-UsbAudio.cmd`](usbaudio/Install-UsbAudio.cmd)
+3. If Verify still shows Avid: **reboot once**, then run the installer again
+   (package delete often needs a reboot on Win11).
+4. Confirm Device Manager → Fast Track Duo → Driver:
+   - **Driver provider:** Microsoft
+   - **Service:** `usbaudio` (not `AVIDUSBFASTTRACKDUO`)
+5. Spatial sound **Off**, disable Enhancements.
+6. Play/record a short clip.
 
-1. Enable test signing, reboot, turn Memory Integrity off if the unsigned package is rejected.
-2. Remove or disable the stock Avid package for MI_00 if it owns the device.
-3. `pnputil /add-driver native-driver\inf\FastTrackDuoNew.inf /install`
-4. Verify Bug Check `0xD1` / `0xA` at the old Avid offset no longer appears (new
-   binary will have different symbols; watch for any new fault in `FastTrackDuoNew`).
+The installer deletes Avid `oem*.inf`, then `pnputil /add-driver` on the
+inbox DriverStore `wdma_usb.inf` (this OS has no `/update-driver`). Unsigned
+community OEM INF is optional (`-TryOemInf`) and usually rejected.
 
-## Hardware ID
+## Uninstall / return to Avid 1.0.4
+
+Reinstall official Avid 1.0.4, or use this repo’s `driver/1.0.5` /
+`1.0.4-patch` packages if you still need the old stack + INF hardening.
+
+## Layout
 
 ```text
-USB\VID_0B0F&PID_2036&MI_00
+native-driver/
+  usbaudio/                  # installable class-driver binding
+    FastTrackDuoUsbAudio.inf
+    Install-UsbAudio.ps1
+    Install-UsbAudio.cmd
+  experimental-avstream/     # custom KS .sys scaffold (WDK)
 ```
-
-`MI_03` / `MI_04` HID interfaces stay on the inbox HID stack.
-
-## Next implementation milestones
-
-1. Parse Duo configuration descriptors; select audio streaming alt-settings.
-2. Isoch OUT (render) URB cycle with non-paged bounce buffers.
-3. Wire pin `Process` to copy KS frames → URB payloads under the stream gate.
-4. Capture (isoch IN) + clock.
-5. Match real supported rates/bit depths from hardware (replace format stubs).
-6. Sign + WHCP if ever distributed broadly.
