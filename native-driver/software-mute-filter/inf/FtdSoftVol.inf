@@ -1,0 +1,117 @@
+;------------------------------------------------------------------------------
+; FtdSoftVol.inf — Fast Track Duo software mute/volume upper filter (prototype)
+;
+; Binds USB\VID_0B0F&PID_2036&MI_00 to inbox usbaudio.sys (USBAudioOEM, no
+; Home Theater SysFx) and installs FtdSoftVol.sys as an UpperFilter that hides
+; KSNODETYPE_VOLUME / KSNODETYPE_MUTE so Windows uses software mute & volume.
+;
+; Requires a built + test-signed (or WHCP-signed) FtdSoftVol.sys beside this INF.
+;------------------------------------------------------------------------------
+
+[Version]
+Signature   = "$WINDOWS NT$"
+Class       = MEDIA
+ClassGUID   = {4d36e96c-e325-11ce-bfc1-08002be10318}
+Provider    = %ProviderName%
+DriverVer   = 11/21/2026,2.1.0.0
+PnpLockdown = 1
+; CatalogFile = FtdSoftVol.cat   ; enable after Inf2Cat + signing
+
+[DestinationDirs]
+DefaultDestDir = 13
+FtdSoftVol.CopyFiles = 13
+
+[SourceDisksNames]
+1 = %DiskName%,,,
+
+[SourceDisksFiles]
+FtdSoftVol.sys = 1
+
+[Manufacturer]
+%ProviderName% = FTD,NTamd64.10.0...16299
+
+[FTD.NTamd64.10.0...16299]
+%FTD.DeviceDesc% = FTD_SoftVol, USB\VID_0B0F&PID_2036&MI_00
+%FTD.DeviceDesc% = FTD_SoftVol, USB\VID_0B0F&PID_2036&REV_0102&MI_00
+
+;---- Function: inbox usbaudio; Filter: FtdSoftVol; no mssysfx ----
+[FTD_SoftVol]
+Include   = ks.inf, wdmaudio.inf, wdma_usb.inf
+Needs     = KS.Registration, WDMAUDIO.Registration, USBAudioOEM
+CopyFiles = FtdSoftVol.CopyFiles
+AddProperty = FTD.AddProp
+
+[FTD_SoftVol.NTamd64]
+Include   = ks.inf, wdmaudio.inf, wdma_usb.inf
+Needs     = KS.Registration, WDMAUDIO.Registration, USBAudioOEM
+CopyFiles = FtdSoftVol.CopyFiles
+AddProperty = FTD.AddProp
+
+[FtdSoftVol.CopyFiles]
+FtdSoftVol.sys,,,0x00004000
+
+[FTD.AddProp]
+GenericDriverInstalled,,,,1
+
+[FTD_SoftVol.HW]
+AddReg = FtdSoftVol.HW.AddReg
+
+[FTD_SoftVol.NTamd64.HW]
+AddReg = FtdSoftVol.HW.AddReg
+
+[FtdSoftVol.HW.AddReg]
+; REG_MULTI_SZ replace — only this upper filter on the Duo stack
+HKR,,"UpperFilters",0x00010000,"FtdSoftVol"
+
+[FTD_SoftVol.Services]
+Include   = wdma_usb.inf
+Needs     = USBAudioOEM.Services
+AddService = FtdSoftVol,,FtdSoftVol.Service.Install
+
+[FTD_SoftVol.NTamd64.Services]
+Include   = wdma_usb.inf
+Needs     = USBAudioOEM.Services
+AddService = FtdSoftVol,,FtdSoftVol.Service.Install
+
+[FtdSoftVol.Service.Install]
+DisplayName    = %FtdSoftVol.ServiceDesc%
+ServiceType    = 1
+StartType      = 3
+ErrorControl   = 1
+ServiceBinary  = %13%\FtdSoftVol.sys
+
+; Interfaces without USBAudio.SysFx.Render / MSFX (silence-class mitigation)
+[FTD_SoftVol.Interfaces]
+AddInterface = %KSCATEGORY_AUDIO%,   "GLOBAL", FTD.Interface,
+AddInterface = %KSCATEGORY_RENDER%,  "GLOBAL", FTD.Interface,
+AddInterface = %KSCATEGORY_CAPTURE%, "GLOBAL", FTD.Interface,
+
+[FTD_SoftVol.NTamd64.Interfaces]
+AddInterface = %KSCATEGORY_AUDIO%,   "GLOBAL", FTD.Interface,
+AddInterface = %KSCATEGORY_RENDER%,  "GLOBAL", FTD.Interface,
+AddInterface = %KSCATEGORY_CAPTURE%, "GLOBAL", FTD.Interface,
+
+[FTD.Interface]
+AddReg = FTD.Interface.AddReg, FTD.EPProperties.AddReg
+
+[FTD.Interface.AddReg]
+HKR,,FriendlyName,,%FTD.DeviceDesc%
+HKR,,CurveType,1,01,00,00,00
+HKR,,CLSID,,%Proxy.CLSID%
+
+[FTD.EPProperties.AddReg]
+HKR,"EP\\0",%PKEY_AudioEndpoint_Association%,,%KSNODETYPE_ANY%
+HKR,"EP\\0",%PKEY_AudioEndpoint_Supports_EventDriven_Mode%,0x00010001,0x1
+
+[Strings]
+ProviderName = "Fast Track Duo Community"
+DiskName = "Fast Track Duo Software Mute Filter"
+FTD.DeviceDesc = "Fast Track Duo (USB Audio + Software Mute)"
+FtdSoftVol.ServiceDesc = "Fast Track Duo Software Mute/Volume Filter"
+Proxy.CLSID = "{17CCA71B-ECD7-11D0-B908-00A0C9223196}"
+KSCATEGORY_AUDIO = "{6994AD04-93EF-11D0-A3CC-00A0C9223196}"
+KSCATEGORY_RENDER = "{65E8773E-8F56-11D0-A3B9-00A0C9223196}"
+KSCATEGORY_CAPTURE = "{65E8773D-8F56-11D0-A3B9-00A0C9223196}"
+PKEY_AudioEndpoint_Association = "{1DA5D803-D492-4EDD-8C23-E0C0FFEE7F0E},2"
+PKEY_AudioEndpoint_Supports_EventDriven_Mode = "{1DA5D803-D492-4EDD-8C23-E0C0FFEE7F0E},7"
+KSNODETYPE_ANY = "{00000000-0000-0000-0000-000000000000}"
