@@ -164,11 +164,12 @@ Avid 바이너리 안의 `+0x1849d` 를 고치려면 **WHCP 인증** 재빌드�
 ## 저장소 구성
 
 ```
-native-driver/usbaudio/   # 권장 Microsoft usbaudio 바인딩 (+ 릴리스 EXE 페이로드)
-patch/                    # 1.0.4 인플레이스 패치 소스
-driver/1.0.5/             # 커뮤니티 드라이버 1.0.5 (INF + 공식 .sys/.cat)
-packaging/                # ExeHost + build.ps1 → dist/*.exe
-.github/workflows/        # 태그/수동 → GitHub Release 업로드
+native-driver/usbaudio/              # 권장 Microsoft usbaudio 바인딩 (+ 릴리스 EXE 페이로드)
+native-driver/software-mute-filter/  # 프로토타입: usbaudio + 소프트웨어 음소거/볼륨 필터
+patch/                               # 1.0.4 인플레이스 패치 소스
+driver/1.0.5/                        # 커뮤니티 드라이버 1.0.5 (INF + 공식 .sys/.cat)
+packaging/                           # ExeHost + build.ps1 → dist/*.exe
+.github/workflows/                   # 태그/수동 → GitHub Release 업로드
 analysis/FINDINGS.md
 README.md / README.ko.md
 ```
@@ -178,3 +179,4 @@ README.md / README.ko.md
 - **`Fast-Track-Duo-USBAudio.exe`** 는 Avid `.sys` 를 로드하지 않아 해당 UAF 를 피합니다. 2013 전용 믹서 기능과 100% 동등하지 않을 수 있습니다.
 - 레거시 패치 / 1.0.5 경로는 `.sys` 내부 `+0x1849d` 를 **고치지 않습니다**.
 - **Driver_fix** exe 는 수정 INF 때문에 서명 정책 완화가 필요할 수 있습니다.
+- **`software-mute-filter`** 는 WDK 프로토타입(testsigning/WHCP)이며 아직 릴리스 EXE 에 포함되지 않습니다. [`native-driver/software-mute-filter/README.md`](native-driver/software-mute-filter/README.md)

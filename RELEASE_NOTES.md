@@ -37,6 +37,12 @@ These two **do not** remove the kernel UAF inside `AvidFastTrackDuo.sys`. Prefer
 
 **Use when** you want community **1.0.5** INF + Avid `.sys`. Modified INF may need Memory Integrity off / testsigning. If blocked, use official 1.0.4 + **`1.0.4-patch.exe`**, or switch to **`Fast-Track-Duo-USBAudio.exe`**.
 
+### Prototype (source only, not a release EXE yet)
+
+| Situation | Path |
+|-----------|------|
+| `usbaudio` works but **Windows mute/volume does not** (hardware Feature Unit) | Build/install [`native-driver/software-mute-filter/`](native-driver/software-mute-filter/) (`FtdSoftVol` upper filter). Needs WDK + testsigning/WHCP. Still avoids Avid `.sys`. |
+
 ### Do not expect any EXE to…
 
 - Repair a bad USB cable / hub / port
@@ -82,6 +88,12 @@ Duo 는 **USB Audio Class 1.0** 입니다. Windows 에 이미 **`usbaudio.sys`**
 ### `Fast-Track-Duo-Driver_fix.1.0.0.exe` — 전체 재설치 (1.0.5)
 
 커뮤니티 1.0.5 INF + Avid `.sys`. 수정 INF 는 메모리 무결성/testsigning 이 필요할 수 있습니다. 막히면 공식 1.0.4 + 패치, 또는 **`Fast-Track-Duo-USBAudio.exe`**.
+
+### 프로토타입 (소스만, 아직 릴리스 EXE 없음)
+
+| 상황 | 경로 |
+|------|------|
+| `usbaudio` 는 되지만 **Windows 음소거/볼륨이 안 먹음** (하드웨어 Feature Unit) | [`native-driver/software-mute-filter/`](native-driver/software-mute-filter/) 빌드·설치 (`FtdSoftVol` upper filter). WDK + testsigning/WHCP 필요. Avid `.sys` 는 여전히 사용하지 않음. |
 
 ### 어느 EXE 도 하지 않는 것
 

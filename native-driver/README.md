@@ -10,6 +10,7 @@ stack you can **install and use for real audio**.
 | Path | Role |
 |------|------|
 | **[`usbaudio/`](usbaudio/)** | **Supported.** Rebind `USB\VID_0B0F&PID_2036&MI_00` to Microsoft **`usbaudio.sys`** (UAC 1.0), no Home Theater SysFx in our INF. |
+| [`software-mute-filter/`](software-mute-filter/) | **Prototype.** Same `usbaudio` bind + `FtdSoftVol.sys` upper filter that hides hardware VOLUME/MUTE so Windows uses **software mute/volume**. Needs WDK build + testsigning/WHCP. |
 | [`experimental-avstream/`](experimental-avstream/) | Research scaffold for a custom `.sys`. Needs WDK + WHCP. Not installable for daily use. |
 
 ### Why inbox `usbaudio.sys`?
@@ -62,5 +63,20 @@ native-driver/
     FastTrackDuoUsbAudio.inf
     Install-UsbAudio.ps1
     Install-UsbAudio.cmd
+  software-mute-filter/      # prototype: usbaudio + software mute/volume filter
+    FtdSoftVol.sys sources, INF, Install-SoftVol.ps1
   experimental-avstream/     # custom KS .sys scaffold (WDK)
 ```
+
+## Optional: Windows mute / volume via software path
+
+If inbox `usbaudio` leaves Windows mute ineffective (hardware Feature Unit),
+build and install the prototype filter:
+
+```powershell
+# after WDK build + test-sign of FtdSoftVol.sys
+sudo .\software-mute-filter\Install-SoftVol.cmd
+.\software-mute-filter\Verify-SoftVol.ps1
+```
+
+Details: [`software-mute-filter/README.md`](software-mute-filter/README.md).

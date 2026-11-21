@@ -164,11 +164,12 @@ Source: [`patch/Install-Patch.cmd`](patch/Install-Patch.cmd).
 ## Repository layout
 
 ```
-native-driver/usbaudio/   # recommended Microsoft usbaudio bind (+ release EXE payload)
-patch/                    # 1.0.4 in-place patch sources
-driver/1.0.5/             # community driver 1.0.5 (INF + official .sys/.cat)
-packaging/                # ExeHost + build.ps1 → dist/*.exe
-.github/workflows/        # tag/manual → GitHub Release upload
+native-driver/usbaudio/              # recommended Microsoft usbaudio bind (+ release EXE payload)
+native-driver/software-mute-filter/  # prototype: usbaudio + software mute/volume upper filter
+patch/                               # 1.0.4 in-place patch sources
+driver/1.0.5/                        # community driver 1.0.5 (INF + official .sys/.cat)
+packaging/                           # ExeHost + build.ps1 → dist/*.exe
+.github/workflows/                   # tag/manual → GitHub Release upload
 analysis/FINDINGS.md
 README.md / README.ko.md
 ```
@@ -178,3 +179,4 @@ README.md / README.ko.md
 - **`Fast-Track-Duo-USBAudio.exe`** avoids the Avid `.sys` UAF by not loading it; class-driver feature parity may differ from the 2013 package.
 - Legacy patch / 1.0.5 paths **do not** repair `+0x1849d` inside `.sys`.
 - Full **Driver_fix** exe may need relaxed driver signature policy (modified INF).
+- **`software-mute-filter`** is a WDK prototype (testsigning/WHCP); not in the release EXE yet. See [`native-driver/software-mute-filter/README.md`](native-driver/software-mute-filter/README.md).
