@@ -1,4 +1,4 @@
-#Requires -Version 5.1
+﻿#Requires -Version 5.1
 <#
 .SYNOPSIS
   Verify Duo MI_00 uses usbaudio + FtdSoftVol UpperFilters.
@@ -64,8 +64,26 @@ if ($mod) {
   Write-Host 'NOTE: Win32_SystemDriver did not list FtdSoftVol (may still be demand-start until stack builds)'
 }
 
+# Warn if Intel SST still owns Duo USB audio (volume/mute bypass)
+$sst = Get-PnpDevice -PresentOnly -ErrorAction SilentlyContinue | Where-Object {
+  $_.Status -eq 'OK' -and (
+    $_.InstanceId -match 'INTELAUDIO\\.*LINKTYPE_06' -or
+    $_.FriendlyName -match 'Smart Sound Technology for USB|USB 오디오용 인텔'
+  )
+}
+if ($sst) {
+  Write-Host ''
+  Write-Host 'WARN: Intel SST for USB Audio is still active:'
+  foreach ($s in $sst) {
+    Write-Host ("  {0}" -f $s.FriendlyName)
+  }
+  Write-Host 'Windows mute/volume often bypass usbaudio/FtdSoftVol while SST is enabled.'
+  Write-Host 'Run Disable-IntelSstUsb.cmd (UAC), reboot if prompted, then retest mute.'
+  $ok = $false
+}
+
 if ($ok) {
-  Write-Host 'PASS: usbaudio + FtdSoftVol filter registered'
+  Write-Host 'PASS: usbaudio + FtdSoftVol filter registered (no active Intel SST USB Audio)'
   exit 0
 }
 

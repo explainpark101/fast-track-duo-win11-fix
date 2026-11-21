@@ -3,6 +3,7 @@ ARM64/
 Debug/
 Release/
 software-mute-filter/package/
+software-mute-filter/logs/
 software-mute-filter/FtdSoftVolTest.cer
 *.user
 *.log
@@ -15,3 +16,4 @@ software-mute-filter/FtdSoftVolTest.cer
 *.ilk
 *.exp
 *.lib
+vc140.pdb

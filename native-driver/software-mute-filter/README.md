@@ -27,48 +27,65 @@ software-mute-filter/
   package/                 # created by installer (sys + inf copy)
 ```
 
-## Build (WDK)
+## One-shot local setup (UAC / PIN)
 
-Requires Visual Studio 2022 + Windows Driver Kit.
+No password file needed — approve interactive UAC (PIN OK if Windows offers it).
 
 ```powershell
 cd native-driver\software-mute-filter
-msbuild FtdSoftVol.sln /p:Configuration=Release /p:Platform=x64
+
+# 1) WDK + VS bits (UAC)
+.\Install-BuildTools.cmd
+
+# 2) Build .sys (no admin) — uses cl/link if VS WDK toolset missing
+pwsh -File .\Build-SoftVol.ps1
+
+# 3) Test-sign + attach UpperFilter on Duo (UAC)
+.\Sign-And-Install-SoftVol.cmd
+
+# 4) Check
+pwsh -File .\Verify-SoftVol.ps1
 ```
 
-Output (typical): `Release\x64\FtdSoftVol.sys`
+If `bcdedit` just enabled testsigning for the first time, **reboot once**, then re-run step 3.
 
-### Test-sign (development)
+Play audio → toggle **Windows mute** / volume. Shared-mode apps should follow software mute.
+
+### If mute/volume still do nothing
+
+On Intel laptops, **Intel Smart Sound Technology for USB Audio** (`IntcUSB`) often
+proxies Duo. Windows volume then never hits `usbaudio` / `FtdSoftVol`.
 
 ```powershell
-# One-time machine setup
-bcdedit /set testsigning on
-# reboot
-
-$cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=FtdSoftVol Test" `
-  -CertStoreLocation Cert:\CurrentUser\My -NotAfter (Get-Date).AddYears(5)
-$cer = Export-Certificate -Cert $cert -FilePath FtdSoftVolTest.cer
-Import-Certificate -FilePath $cer.FullName -CertStoreLocation Cert:\LocalMachine\Root
-Import-Certificate -FilePath $cer.FullName -CertStoreLocation Cert:\LocalMachine\TrustedPublisher
-
-Set-AuthenticodeSignature Release\x64\FtdSoftVol.sys $cert -HashAlgorithm SHA256
+.\Disable-IntelSstUsb.cmd   # UAC — sets device disabled (ConfigFlags)
+# reboot once if Device Manager still shows SST USB Audio as OK
+.\Verify-SoftVol.ps1        # should PASS without SST WARN
 ```
 
-Production / Secure Boot without testsigning needs **EV + WHCP** attestation — not part of this prototype.
+Or Device Manager → Sound, video and game controllers →
+**USB 오디오용 인텔® 스마트 사운드 기술** → Disable → reboot.
 
-## Install
+## Build details
 
-1. Prefer having Duo already on `usbaudio` (`..\usbaudio\Install-UsbAudio.cmd`), or let this INF rebinding happen together.
-2. Elevated:
+`Build-SoftVol.ps1` tries MSBuild `WindowsKernelModeDriver10.0`, then falls back to
+`cl.exe` / `link.exe` with WDK KM headers (`10.0.26100.0`).
 
-```powershell
-.\Install-SoftVol.cmd
-.\Verify-SoftVol.ps1
-```
+Output: `Release\x64\FtdSoftVol.sys` (also staged under `package\`).
 
-3. Reboot if Verify shows missing UpperFilters or the service did not attach.
-4. Play audio → toggle **Windows mute** / volume. Shared-mode apps should follow software mute.
+Production / Secure Boot without testsigning needs **EV + WHCP** — not this prototype.
 
+## Install notes
+
+`Sign-And-Install-SoftVol.ps1` (elevated):
+
+1. Ensures testsigning
+2. Test-signs `FtdSoftVol.sys`
+3. Copies to `%SystemRoot%\System32\drivers\`
+4. Creates kernel service `FtdSoftVol`
+5. Sets device `UpperFilters` on `USB\VID_0B0F&PID_2036&MI_00`
+6. Restarts the device
+
+(Inf2Cat driver-store packaging is skipped on this host — WDK Inf2Cat hits `0x8007000B`.)
 ## Uninstall
 
 ```powershell

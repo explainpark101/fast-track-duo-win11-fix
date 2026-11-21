@@ -15,7 +15,7 @@ ClassGUID   = {4d36e96c-e325-11ce-bfc1-08002be10318}
 Provider    = %ProviderName%
 DriverVer   = 11/21/2026,2.1.0.0
 PnpLockdown = 1
-; CatalogFile = FtdSoftVol.cat   ; enable after Inf2Cat + signing
+CatalogFile = FtdSoftVol.cat
 
 [DestinationDirs]
 DefaultDestDir = 13
