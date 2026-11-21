@@ -44,7 +44,10 @@ From source:
    - **Driver provider:** Microsoft
    - **Service:** `usbaudio` (not `AVIDUSBFASTTRACKDUO`)
 5. Spatial sound **Off**, disable Enhancements.
-6. Play/record a short clip.
+6. If Firefox/Chrome silence each other intermittently, run elevated
+   [`usbaudio/Harden-DuoSharedAudio.cmd`](usbaudio/Harden-DuoSharedAudio.cmd)
+   (disables exclusive mode + SysFx, restarts Audio).
+7. Play/record a short clip.
 
 The installer deletes Avid `oem*.inf`, then `pnputil /add-driver` on the
 inbox DriverStore `wdma_usb.inf` (this OS has no `/update-driver`). Unsigned

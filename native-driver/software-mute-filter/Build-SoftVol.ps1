@@ -36,17 +36,32 @@ function Find-MSBuild {
 }
 
 function Find-VsMsvc {
+  $candidates = @()
   $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-  $vs = $null
   if (Test-Path $vswhere) {
-    $vs = (& $vswhere -latest -products * -property installationPath | Select-Object -First 1)
+    # Prefer real VS (not SSMS); require MSVC tools
+    $fromWhere = & $vswhere -latest -products * `
+      -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+      -property installationPath 2>$null
+    if ($fromWhere) { $candidates += $fromWhere.Trim() }
+    $all = & $vswhere -all -products * -property installationPath 2>$null
+    if ($all) { $candidates += @($all | ForEach-Object { $_.Trim() }) }
   }
-  if (-not $vs) { $vs = "${env:ProgramFiles}\Microsoft Visual Studio\18\Community" }
-  $msvcRoot = Join-Path $vs 'VC\Tools\MSVC'
-  $ver = Get-ChildItem $msvcRoot -Directory -ErrorAction SilentlyContinue |
-    Sort-Object Name -Descending | Select-Object -First 1
-  if (-not $ver) { throw "MSVC not found under $msvcRoot" }
-  return $ver.FullName
+  $candidates += @(
+    "${env:ProgramFiles}\Microsoft Visual Studio\18\Community",
+    "${env:ProgramFiles}\Microsoft Visual Studio\2022\Community",
+    "${env:ProgramFiles}\Microsoft Visual Studio\2022\Professional",
+    "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise"
+  )
+  foreach ($vs in ($candidates | Select-Object -Unique)) {
+    if (-not $vs) { continue }
+    if ($vs -match 'SQL Server Management Studio') { continue }
+    $msvcRoot = Join-Path $vs 'VC\Tools\MSVC'
+    $ver = Get-ChildItem $msvcRoot -Directory -ErrorAction SilentlyContinue |
+      Sort-Object Name -Descending | Select-Object -First 1
+    if ($ver) { return $ver.FullName }
+  }
+  throw 'MSVC not found (install VS C++ workload).'
 }
 
 function Find-KitVersion {

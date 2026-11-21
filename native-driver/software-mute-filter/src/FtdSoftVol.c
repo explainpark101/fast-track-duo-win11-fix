@@ -30,12 +30,6 @@ static const GUID FtdKsPropSetTopology = {
     { 0xA5, 0xD6, 0x28, 0xDB, 0x04, 0xC1, 0x00, 0x00 }
 };
 
-/* KSPROPSETID_Audio = {45FFAAA0-6E1B-11D0-BCF2-444553540000} */
-static const GUID FtdKsPropSetAudio = {
-    0x45FFAAA0, 0x6E1B, 0x11D0,
-    { 0xBC, 0xF2, 0x44, 0x45, 0x53, 0x54, 0x00, 0x00 }
-};
-
 static __inline BOOLEAN
 FtdGuidEqual(
     _In_ const GUID *A,
@@ -290,18 +284,11 @@ FtdSoftVolDeviceControl(
     }
 
     /*
-     * Hardware volume/mute nodes are hidden — reject direct property I/O so
-     * clients cannot rediscover them outside topology enumeration.
+     * Do NOT reject VOLUMELEVEL/MUTE property IOCTLs. Hiding the nodes from
+     * topology is enough for the Audio Engine to prefer software volume.
+     * Returning STATUS_NOT_FOUND on live property traffic races multi-client
+     * shared-mode graphs (Firefox silent until Chrome remounts the mix).
      */
-    if (FtdGuidEqual(&prop.Set, &FtdKsPropSetAudio) &&
-        (prop.Id == KSPROPERTY_AUDIO_VOLUMELEVEL ||
-         prop.Id == KSPROPERTY_AUDIO_MUTE)) {
-        KdPrint(("[FtdSoftVol] reject audio prop Id=%u\n", prop.Id));
-        Irp->IoStatus.Status = STATUS_NOT_FOUND;
-        Irp->IoStatus.Information = 0;
-        IoCompleteRequest(Irp, IO_NO_INCREMENT);
-        return STATUS_NOT_FOUND;
-    }
 
 passthrough:
     IoSkipCurrentIrpStackLocation(Irp);

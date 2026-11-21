@@ -69,8 +69,51 @@ Write-Host "Cert thumbprint=$($cert.Thumbprint)"
 Write-Step 'Sign + install FtdSoftVol.sys'
 $sig = Set-AuthenticodeSignature -FilePath $Sys -Certificate $cert -HashAlgorithm SHA256
 Write-Host ("Signature Status={0}" -f $sig.Status)
-Copy-Item -LiteralPath $Sys -Destination $DestSys -Force
-Write-Host "Copied to $DestSys"
+
+# Unload audio stack so System32\drivers\FtdSoftVol.sys is not locked
+foreach ($svc in @('Audiosrv', 'AudioEndpointBuilder')) {
+  & net.exe stop $svc /y 2>&1 | Out-Null
+}
+$duoDevs = Get-PnpDevice -ErrorAction SilentlyContinue |
+  Where-Object { $_.InstanceId -like ("USB\{0}&MI_00*" -f $UsbVidPid) }
+foreach ($d in $duoDevs) {
+  try {
+    Disable-PnpDevice -InstanceId $d.InstanceId -Confirm:$false -ErrorAction Stop
+    Write-Host ("disabled " + $d.InstanceId)
+  } catch {
+    Write-Host ("disable: " + $_.Exception.Message)
+  }
+}
+Start-Sleep -Seconds 2
+& sc.exe stop $ServiceName 2>&1 | Out-Null
+Start-Sleep -Seconds 1
+
+$copied = $false
+try {
+  Copy-Item -LiteralPath $Sys -Destination $DestSys -Force -ErrorAction Stop
+  $copied = $true
+  Write-Host "Copied to $DestSys"
+} catch {
+  Write-Host ("live copy failed: " + $_.Exception.Message)
+  # Schedule replace on next reboot (MOVEFILE_DELAY_UNTIL_REBOOT | REPLACE_EXISTING)
+  Add-Type -Namespace Ftd -Name Native -MemberDefinition @"
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet=System.Runtime.InteropServices.CharSet.Unicode, SetLastError=true)]
+    public static extern bool MoveFileEx(string existing, string newFile, int flags);
+"@ -ErrorAction SilentlyContinue
+  $pending = Join-Path $env:TEMP 'FtdSoftVol.pending.sys'
+  Copy-Item -LiteralPath $Sys -Destination $pending -Force
+  $flags = 0x5  # MOVEFILE_REPLACE_EXISTING | MOVEFILE_DELAY_UNTIL_REBOOT
+  if ([Ftd.Native]::MoveFileEx($pending, $DestSys, $flags)) {
+    Write-Host "Scheduled replace of $DestSys on next reboot"
+    $script:NeedsRebootForSys = $true
+  } else {
+    throw "Cannot replace locked FtdSoftVol.sys (win32=$([Runtime.InteropServices.Marshal]::GetLastWin32Error()))"
+  }
+}
+
+foreach ($svc in @('AudioEndpointBuilder', 'Audiosrv')) {
+  & net.exe start $svc 2>&1 | Out-Null
+}
 
 Write-Step 'Kernel service'
 $svc = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
